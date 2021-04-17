@@ -5,7 +5,7 @@
 #ifndef ILS_PPP_MATRIX_H
 #define ILS_PPP_MATRIX_H
 
-#define EPS 1e-10
+#define EPS 1e-12
 
 #include <iostream>
 #include <stdexcept>
@@ -383,20 +383,20 @@ Matrix<T> Matrix<T>::solve(Matrix<T> A, Matrix<T> b)
         for (int j = i + 1; j < A.rows_; ++j) {
             for (int k = i + 1; k < A.cols_; ++k) {
                 A.p[j][k] -= A.p[i][k] * (A.p[j][i] / A.p[i][i]);
-                if (A.p[j][k] < EPS && A.p[j][k] > -1*EPS)
+                if (A.p[j][k] < EPS && A.p[j][k] > -1.0*EPS)
                     A.p[j][k] = 0;
             }
             b.p[j][0] -= b.p[i][0] * (A.p[j][i] / A.p[i][i]);
-            if (A.p[j][0] < EPS && A.p[j][0] > -1*EPS)
+            if (A.p[j][0] < EPS && A.p[j][0] > -1.0*EPS)
                 A.p[j][0] = 0;
             A.p[j][i] = 0;
         }
     }
 
     // Back substitution
-    Matrix x(b.rows_, 1);
+    Matrix<T> x(b.rows_, 1);
     x.p[x.rows_ - 1][0] = b.p[x.rows_ - 1][0] / A.p[x.rows_ - 1][x.rows_ - 1];
-    if (x.p[x.rows_ - 1][0] < EPS && x.p[x.rows_ - 1][0] > -1*EPS)
+    if (x.p[x.rows_ - 1][0] < EPS && x.p[x.rows_ - 1][0] > -1.0*EPS)
         x.p[x.rows_ - 1][0] = 0;
     for (int i = x.rows_ - 2; i >= 0; --i) {
         int sum = 0;
@@ -404,7 +404,7 @@ Matrix<T> Matrix<T>::solve(Matrix<T> A, Matrix<T> b)
             sum += A.p[i][j] * x.p[j][0];
         }
         x.p[i][0] = (b.p[i][0] - sum) / A.p[i][i];
-        if (x.p[i][0] < EPS && x.p[i][0] > -1*EPS)
+        if (x.p[i][0] < EPS && x.p[i][0] > -1.0*EPS)
             x.p[i][0] = 0;
     }
 
