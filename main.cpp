@@ -60,7 +60,7 @@ Matrix<double> gauss(Matrix<double> A, Matrix<double> b) {
 double norm(Matrix<double> v) {
     double cumulativeSum{0.0};
     for (int i = 0; i < v.getRows(); ++i)
-        cumulativeSum += (v(i,0) * v(i,0));
+        cumulativeSum += (v(i, 0) * v(i, 0));
     return sqrt(cumulativeSum);
 }
 
@@ -69,9 +69,9 @@ void Normalize(Matrix<double> &v) {
     double vecNorm = norm(v);
 
     // Compute the elements of the normalized version of the vector.
-    for (int i=0; i<v.getRows(); ++i) {
-        double temp = v(i,0) * (1.0 / vecNorm);
-        v(i,0) = temp;
+    for (int i = 0; i < v.getRows(); ++i) {
+        double temp = v(i, 0) * (1.0 / vecNorm);
+        v(i, 0) = temp;
     }
 }
 
@@ -173,25 +173,28 @@ double inverse_powermethod(const Matrix<double> &A) {
 
 }
 
-double inverse_powermethod_with_varbias(const Matrix<double>& A, const Matrix<double> &x_0) {
-    double eps{1.0e-8};
-//    bool rethist{false};
-    Matrix<double> x_temp, x_iter;
-    x_temp =  x_0;
-    int count = 0;
-
-    double lambda{0.0};
-    double old_lambda{1.0};
-
-    while (std::fabs(1.0 - lambda / old_lambda) > eps && count < 50) {
-        old_lambda = lambda;
-        x_iter = gauss(A, x_temp);
-        lambda = x_iter(0, 0);
-        x_iter /= lambda;
-        x_temp = x_iter;
-        count += 1;
-    }
-    return lambda;
+double getValueFromVector(const Matrix<double> &A, Matrix<double> eigenVector) {
+//    double eps{1.0e-8};
+////    bool rethist{false};
+//    Matrix<double> x_temp, x_iter;
+//    x_temp = x_0;
+//    int count = 0;
+//
+//    double lambda{0.0};
+//    double old_lambda{1.0};
+//
+//    while (std::fabs(1.0 - lambda / old_lambda) > eps && count < 50) {
+//        old_lambda = lambda;
+//        x_iter = gauss(A, x_temp);
+//        lambda = x_iter(0, 0);
+//        x_iter /= lambda;
+//        x_temp = x_iter;
+//        count += 1;
+//    }
+    double temp{eigenVector(0, 0)};
+    eigenVector = A * eigenVector;
+//    std::cout << "A*v = \n" << eVector << "\n lambda = " << eVector(1,0) / v[1] << '\n';
+    return eigenVector(0, 0) / temp;
 }
 
 //std::vector<double> initial_interval_net(const Matrix<double> &A) {
@@ -212,53 +215,55 @@ double inverse_powermethod_with_varbias(const Matrix<double>& A, const Matrix<do
 //
 //}
 
-//constexpr int MAXRANGE = 1000;
-//
-//class randomStreamUniformInt {
-//public:
-//    explicit randomStreamUniformInt(int lower_bound, int upper_bound)
-//            : mt(std::random_device{}()), uniform_dist(lower_bound, upper_bound) {}
-//    explicit randomStreamUniformInt(int lower_bound, int upper_bound, double seed)
-//            : mt(seed), uniform_dist(lower_bound, upper_bound) {}
-//
-//    int operator() () { return uniform_dist(mt); }
-//private:
-//    std::mt19937_64                     mt{};
-//    std::uniform_int_distribution<>     uniform_dist;
-//};
-//
-//static randomStreamUniformInt rng(-MAXRANGE, MAXRANGE);
-//
-//std::vector<double> generate_random(const std::size_t numElements) {
-//    std::vector<double> res(numElements);
-//    std::generate(res.begin(), res.end(), rng);
-//    return res;
-//}
-//
-//std::vector<double> generate_orthogonal(const std::vector<double>& a) {
-//    // get some random data
-//    std::vector<double> b = generate_random(a.size());
-//
-//    // find the last non zero entry in a
-//    // We have to turn the reverse iterator into an iterator via std::prev(rit.base())
-//    auto IsZero = [](const double f) -> bool { return f == double(0.0); };
-//    auto end = std::prev(std::find_if_not(a.crbegin(), a.crend(), IsZero).base());
-//
-//    // determine the dot product up to end
-//    double dot_product = std::inner_product(a.cbegin(), end, b.cbegin(), double(0.0));
-//
-//    // set the value of b so that the inner product is zero
-//    b[std::distance(a.cbegin(), end)] = -dot_product / (*end);
-//
-//    return b;
-//}
+constexpr int MAXRANGE = 1000;
 
-std::vector<double> inverse_powermethod_modified(const Matrix<double>& A, double eigenValue) {
+class randomStreamUniformInt {
+public:
+    explicit randomStreamUniformInt(int lower_bound, int upper_bound)
+            : mt(std::random_device{}()), uniform_dist(lower_bound, upper_bound) {}
+
+    explicit randomStreamUniformInt(int lower_bound, int upper_bound, double seed)
+            : mt(seed), uniform_dist(lower_bound, upper_bound) {}
+
+    int operator()() { return uniform_dist(mt); }
+
+private:
+    std::mt19937_64 mt{};
+    std::uniform_int_distribution<> uniform_dist;
+};
+
+static randomStreamUniformInt rng(-MAXRANGE, MAXRANGE);
+
+std::vector<double> generate_random(const std::size_t numElements) {
+    std::vector<double> res(numElements);
+    std::generate(res.begin(), res.end(), rng);
+    return res;
+}
+
+std::vector<double> generate_orthogonal(const std::vector<double> &a) {
+    // get some random data
+    std::vector<double> b = generate_random(a.size());
+
+    // find the last non zero entry in a
+    // We have to turn the reverse iterator into an iterator via std::prev(rit.base())
+    auto IsZero = [](const double f) -> bool { return f == double(0.0); };
+    auto end = std::prev(std::find_if_not(a.crbegin(), a.crend(), IsZero).base());
+
+    // determine the dot product up to end
+    double dot_product = std::inner_product(a.cbegin(), end, b.cbegin(), double(0.0));
+
+    // set the value of b so that the inner product is zero
+    b[std::distance(a.cbegin(), end)] = -dot_product / (*end);
+
+    return b;
+}
+
+std::vector<double> inverse_powermethod_modified(const Matrix<double> &A, double eigenValue) {
     const double eps{1e-9};
-    std::vector<double> eigenVector(A.getCols(), 0.01);
-    int s {A.getCols()}, count{0};
+    std::vector<double> eigenVector(A.getCols(), 1.0);
+    int s{A.getCols()}, count{0};
     double lambda, delta{1e6};
-    Matrix<double> x_iter, x_temp, tempMatrix(A.getRows(),A.getCols());
+    Matrix<double> x_iter, x_temp, tempMatrix(A.getRows(), A.getCols());
     Matrix<double> I = Matrix<double>::createIdentity(A.getCols());
     x_iter.pushBackColumn(eigenVector);
     while (delta > eps && count < 300) {
@@ -277,41 +282,79 @@ std::vector<double> inverse_powermethod_modified(const Matrix<double>& A, double
 //        lambda = x_iter(0, 0);
 //        x_iter /= lambda;
 //        x_temp = x_iter;
-
     }
 
-    for(int i = 0; i < A.getRows(); ++i) {
+    for (int i = 0; i < A.getRows(); ++i) {
 //        std::cout << "eigenVector[i] = " << x_iter(i,0) << '\n';
-        eigenVector[i] = x_iter(i,0);
+        eigenVector[i] = x_iter(i, 0);
     }
 
     return eigenVector;
 }
 
+Matrix<double> inverse_powermethod_modified(const Matrix<double> &A, const std::vector<double> &eigenVectorInit) {
+    const double eps{1e-16};
+    int s{A.getCols()}, count{0};
+    double lambda, delta{1e6};
+    double eigenValue{-1.0};
+    Matrix<double> eigenVector(A.getRows(), 1);
+    Matrix<double> x_iter, x_temp, tempMatrix(A.getRows(), A.getCols());
+    Matrix<double> I = Matrix<double>::createIdentity(A.getCols());
+    x_iter.pushBackColumn(eigenVectorInit);
+    while (delta > eps && count < 1000) {
+        x_temp = x_iter;
+        I *= eigenValue;
+        tempMatrix = A - I;
+        x_iter = gauss(tempMatrix, x_iter);
+        Normalize(x_iter);
+//        std::cout << x_iter << '\n';
+        x_temp *= x_iter - x_temp;
+        delta = norm(x_iter - x_temp);
+
+        count++;
+
+//        x_iter = gauss(A, x_temp);
+//        lambda = x_iter(0, 0);
+//        x_iter /= lambda;
+//        x_temp = x_iter;
+    }
+
+//    std::cout << "x_iter : \n" << x_iter << '\n';
+    return x_iter;
+}
+
 std::vector<double> find_them_all(const Matrix<double> &A, const double &first) {
     std::vector<double> x_0(A.getCols(), 1.0);
     std::vector<double> eigenValues, eigenVector;
-    Matrix<double> eigenVectorMatrix(A.getRows(), A.getCols()), zeros(A.getRows(), 1), initApproximation;
+    Matrix<double> eigenVectorMatrix(A.getRows(), A.getCols()), zeros(A.getRows(), 1), initApproximation(A.getRows(),
+                                                                                                         1);
     eigenValues.reserve(A.getCols());
     eigenValues.push_back(first);
-    initApproximation.pushBackColumn(x_0);
+    eigenVector = inverse_powermethod_modified(A, first);
     for (int i = 1; i < A.getRows(); ++i) {
-        eigenVector = inverse_powermethod_modified(A, eigenValues[i-1]);
+//        for (int j = 0; j < A.getRows(); ++j) {
+//            eigenVectorMatrix(i - 1, j) = eigenVector[j];
+//        }
+//        std::cout << "eigenVectorMatrix : \n" << eigenVectorMatrix << '\n';
+        eigenVector = generate_orthogonal(eigenVector);                           ////TODO
+//        for (int j = 0; j < A.getRows(); ++j) {
+//            initApproximation(j, 0) = eigenVector[j];
+//        }
 //        Normalize(initApproximation);
-        for(int j = 0; j < A.getRows(); ++j) {
-            eigenVectorMatrix(i-1, j) = eigenVector[j];
+        initApproximation = inverse_powermethod_modified(A, eigenVector);
+        std::cout << "initApproximation : \n" << initApproximation << '\n';
+        for (int j = 0; j < A.getRows(); ++j) {
+            initApproximation(j, 0) = -initApproximation(j, 0);             ////WHY?
+            eigenVector[j] = initApproximation(j, 0);
         }
-//        std::cout << "EV Matrix:\n" << eigenVectorMatrix <<'\n';
-//        initApproximation = gauss(eigenVectorMatrix,zeros);
-//        Normalize(initApproximation);
-//        std::cout << "??????????\n" << initApproximation << '\n';
-        eigenValues.push_back(inverse_powermethod_with_varbias(A,initApproximation));
+        eigenValues.push_back(getValueFromVector(A, initApproximation));
 
     }
 
     std::sort(eigenValues.begin(), eigenValues.end());
     return eigenValues;
 }
+
 using std::cout;
 using std::endl;
 
@@ -328,18 +371,26 @@ int main() {
     std::cout << "lambda_max = " << std::setprecision(16) << std::fixed << powermethod(A) << '\t'
               << "lambda_min = " << std::setprecision(16) << std::fixed << inverse_powermethod(A) << '\n';
     std::cout << "||||||||||||||||||||||||||||||||\n\n";
-    std::vector<double> eigen = find_them_all(A, inverse_powermethod(A));
-    for (auto i : eigen) {
+
+    for (auto i : find_them_all(A, inverse_powermethod(A))) {
         std::cout << i << '\n';
     }
-//    double ev{inverse_powermethod(A)};
-//    Matrix<double> zero(A.getRows(), 1);
-//    for (int i = 0; i < A.getRows(); ++i) {
-//        A(i,i) -= ev;
-//    }
-//    std::cout << "ev = " << ev << "\n A: \n" << A << '\n';
-//    Matrix<double> B = gauss(A, zero);
-//    std::cout << "Evec : \n" << B;
+
+//    Matrix<double> eVector;
+//    std::vector<double> v{-0.00704204616,
+//                          0.0207184355,
+//                          -0.151905104,
+//                          0.302183775,
+//                          -0.417725541,
+//                          0.479727084,
+//                          -0.474703335,
+//                          0.401082565,
+//                          -0.27593617,
+//                          0.13471083};
+//    eVector.pushBackColumn(v);
+//    eVector = A * eVector;
+//    std::cout << "A*v = \n" << eVector << "\n lambda = " << eVector(1,0) / v[1] << '\n';
+
 }
 //    /*
 //     * TODO:
@@ -388,6 +439,8 @@ int main() {
 0.341903097
 0.384613524
 0.435854438
+
+1.6678972       1.01871523      0.821207147     0.681495297   0.578181502   0.305337326   0.498798237   0.341903097    0.384613524    0.435854438
 
 0.605660162    -0.778333243     0.142430466    -0.0656488895  0.0385370767 -0.00704204616 0.0254576042 -0.00980685621 -0.0132028503  -0.017989998
 0.788278725     0.560652735    -0.190209309     0.116236569  -0.0806328593  0.0207184355 -0.0595601062  0.027735968    0.0355843584   0.0456157174
