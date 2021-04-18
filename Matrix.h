@@ -463,8 +463,8 @@ Matrix<T> Matrix<T>::createIdentity(int size) {
 
 // functions on AUGMENTED matrices
 template<class T>
-Matrix<T> Matrix<T>::augment(Matrix A, Matrix B) {
-    Matrix AB(A.rows_, A.cols_ + B.cols_);
+Matrix<T> Matrix<T>::augment(Matrix<T> A, Matrix<T> B) {
+    Matrix<T> AB(A.rows_, A.cols_ + B.cols_);
     for (int i = 0; i < AB.rows_; ++i) {
         for (int j = 0; j < AB.cols_; ++j) {
             if (j < A.cols_)
