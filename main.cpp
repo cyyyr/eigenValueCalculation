@@ -215,47 +215,23 @@ double getValueFromVector(const Matrix<double> &A, Matrix<double> eigenVector) {
 //
 //}
 
-constexpr int MAXRANGE = 1000;
-
-class randomStreamUniformInt {
-public:
-    explicit randomStreamUniformInt(int lower_bound, int upper_bound)
-            : mt(std::random_device{}()), uniform_dist(lower_bound, upper_bound) {}
-
-    explicit randomStreamUniformInt(int lower_bound, int upper_bound, double seed)
-            : mt(seed), uniform_dist(lower_bound, upper_bound) {}
-
-    int operator()() { return uniform_dist(mt); }
-
-private:
-    std::mt19937_64 mt{};
-    std::uniform_int_distribution<> uniform_dist;
-};
-
-static randomStreamUniformInt rng(-MAXRANGE, MAXRANGE);
-
-std::vector<double> generate_random(const std::size_t numElements) {
-    std::vector<double> res(numElements);
-    std::generate(res.begin(), res.end(), rng);
-    return res;
-}
-
-std::vector<double> generate_orthogonal(const std::vector<double> &a) {
-    // get some random data
-    std::vector<double> b = generate_random(a.size());
-
-    // find the last non zero entry in a
-    // We have to turn the reverse iterator into an iterator via std::prev(rit.base())
-    auto IsZero = [](const double f) -> bool { return f == double(0.0); };
-    auto end = std::prev(std::find_if_not(a.crbegin(), a.crend(), IsZero).base());
-
-    // determine the dot product up to end
-    double dot_product = std::inner_product(a.cbegin(), end, b.cbegin(), double(0.0));
-
-    // set the value of b so that the inner product is zero
-    b[std::distance(a.cbegin(), end)] = -dot_product / (*end);
-
-    return b;
+std::vector<double> generate_orthogonal(std::vector<std::vector<double>> vectors) {
+    std::vector<double> approx(vectors[0].size(), 0.01);
+    std::vector<double> orthogonal{approx};
+    for (int i = 0; i < vectors.size(); ++i) {
+        std::cout << "You came to generate_orthogonal \n";
+        for (int j = 0; j < vectors[0].size(); ++j) {
+            std::cout << vectors[i][j] << '\n';
+        }
+        double temp{
+                std::inner_product(vectors[i].begin(), vectors[i].end(), approx.begin(), 0.0) /
+                std::inner_product(vectors[i].begin(), vectors[i].end(), vectors[i].begin(), 0.0)
+        };
+        for (int j = 0; j < vectors.size(); ++j) {
+            orthogonal[j] -= vectors[i][j] * temp;
+        }
+    }
+    return orthogonal;
 }
 
 std::vector<double> inverse_powermethod_modified(const Matrix<double> &A, double eigenValue) {
@@ -328,25 +304,33 @@ std::vector<double> find_them_all(const Matrix<double> &A, const double &first) 
     std::vector<double> eigenValues, eigenVector;
     Matrix<double> eigenVectorMatrix(A.getRows(), A.getCols()), zeros(A.getRows(), 1), initApproximation(A.getRows(),
                                                                                                          1);
+    std::vector<std::vector<double>> eigenVectors;
     eigenValues.reserve(A.getCols());
     eigenValues.push_back(first);
     eigenVector = inverse_powermethod_modified(A, first);
+    eigenVectors.push_back(eigenVector);
     for (int i = 1; i < A.getRows(); ++i) {
 //        for (int j = 0; j < A.getRows(); ++j) {
 //            eigenVectorMatrix(i - 1, j) = eigenVector[j];
 //        }
 //        std::cout << "eigenVectorMatrix : \n" << eigenVectorMatrix << '\n';
-        eigenVector = generate_orthogonal(eigenVector);                           ////TODO
+//        eigenVector = generate_orthogonal(eigenVectors);                           ////TODO
+        eigenVectors.push_back(generate_orthogonal(eigenVectors));
 //        for (int j = 0; j < A.getRows(); ++j) {
 //            initApproximation(j, 0) = eigenVector[j];
 //        }
 //        Normalize(initApproximation);
-        initApproximation = inverse_powermethod_modified(A, eigenVector);
-        std::cout << "initApproximation : \n" << initApproximation << '\n';
+        initApproximation = inverse_powermethod_modified(A, eigenVectors[i]);
+//        std::cout << "Pushed eigenVector: \n";
         for (int j = 0; j < A.getRows(); ++j) {
-            initApproximation(j, 0) = -initApproximation(j, 0);             ////WHY?
-            eigenVector[j] = initApproximation(j, 0);
+            eigenVectors[i][j] = initApproximation(j,0);
+//            std::cout << eigenVectors[i][j] << '\n';
         }
+//        std::cout << "initApproximation : \n" << initApproximation << '\n';
+//        for (int j = 0; j < A.getRows(); ++j) {
+//            initApproximation(j, 0) = -initApproximation(j, 0);             ////WHY?
+//            eigenVector[j] = initApproximation(j, 0);
+//        }
         eigenValues.push_back(getValueFromVector(A, initApproximation));
 
     }
@@ -387,9 +371,11 @@ int main() {
 //                          0.401082565,
 //                          -0.27593617,
 //                          0.13471083};
+//    v = generate_orthogonal(v);
+//    eVector = inverse_powermethod_modified(A, v);
 //    eVector.pushBackColumn(v);
 //    eVector = A * eVector;
-//    std::cout << "A*v = \n" << eVector << "\n lambda = " << eVector(1,0) / v[1] << '\n';
+//    std::cout << "vector = \n" << eVector << '\n';
 
 }
 //    /*
