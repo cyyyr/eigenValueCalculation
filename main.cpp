@@ -57,10 +57,45 @@ Matrix<double> gauss(Matrix<double> A, Matrix<double> b) {
     return x;
 }
 
+//Matrix<double> tridiagonalMatrixMethod(Matrix<double> A, Matrix<double> b)
+Matrix<double> solveTridiagonal(const Matrix<double> &A, const Matrix<double> &input_vector) {
+    assert(A.getCols() == A.getRows());
+    assert(A.getCols() == input_vector.getRows());
+    assert(input_vector.getRows() >= 2);
+
+    Matrix<double> modifiedMainDiagonal(input_vector.getRows(), 1);
+    Matrix<double> result(input_vector.getRows(), 1);
+
+    modifiedMainDiagonal(0, 0) = A(0, 0);
+    result(0, 0) = input_vector(0, 0);
+
+    for (int i = 1; i < input_vector.getRows(); ++i) {
+        const double ratio = A(i, i - 1) / modifiedMainDiagonal(i - 1, 0);
+        modifiedMainDiagonal(i, 0) = A(i, i) - ratio * A(i - 1, i);
+        result(i, 0) = input_vector(i, 0) - ratio * result(i - 1, 0);
+    }
+
+    int n = input_vector.getRows() - 1;
+    result(n, 0) /= modifiedMainDiagonal(n, 0);
+
+    for (int i = n - 1; i >= 0; --i) {   // while not overflow
+        result(i, 0) = (result(i, 0) - result(i + 1, 0) * A(i, i + 1)) / modifiedMainDiagonal(i, 0);
+    }
+
+    return result;
+}
+
 double norm(Matrix<double> v) {
     double cumulativeSum{0.0};
     for (int i = 0; i < v.getRows(); ++i)
         cumulativeSum += (v(i, 0) * v(i, 0));
+    return sqrt(cumulativeSum);
+}
+
+double norm(std::vector<double> v) {
+    double cumulativeSum{0.0};
+    for (int i = 0; i < v.size(); ++i)
+        cumulativeSum += (v[i] * v[i]);
     return sqrt(cumulativeSum);
 }
 
@@ -75,31 +110,31 @@ void Normalize(Matrix<double> &v) {
     }
 }
 
-//Matrix<double> get_matrix(int s) {
-//    Matrix<double> A(s, s);
-//    for (int i = 0; i < s; ++i) {
-//        for (int k = 0; k < s; ++k) {
-//            A(i, k) = pow((static_cast<double>(std::abs(i - k) + 1)), -3.0)
-//                      + pow(static_cast<double>(i + k - s + 2), 2.0);
-//        }
-//    }
-//    return A;
-//}
-
-Matrix<double> get_matrix(int s, double alpha) {
+Matrix<double> get_matrix(int s) {
     Matrix<double> A(s, s);
     for (int i = 0; i < s; ++i) {
         for (int k = 0; k < s; ++k) {
-            if (k != i) {
-                A(i, k) = 0.2 / sqrt(static_cast<double>(i + k + 2))
-                          + 0.01 * sqrt(static_cast<double>(i + k + 2));
-            } else if (k == i) {
-                A(i, k) = 5.0 / (static_cast<double>(i + 1) + alpha);
-            }
+            A(i, k) = pow((static_cast<double>(std::abs(i - k) + 1)), -3.0)
+                      + pow(static_cast<double>(i + k - s + 2), 2.0);
         }
     }
     return A;
 }
+
+//Matrix<double> get_matrix(int s, double alpha) {
+//    Matrix<double> A(s, s);
+//    for (int i = 0; i < s; ++i) {
+//        for (int k = 0; k < s; ++k) {
+//            if (k != i) {
+//                A(i, k) = 0.2 / sqrt(static_cast<double>(i + k + 2))
+//                          + 0.01 * sqrt(static_cast<double>(i + k + 2));
+//            } else if (k == i) {
+//                A(i, k) = 5.0 / (static_cast<double>(i + 1) + alpha);
+//            }
+//        }
+//    }
+//    return A;
+//}
 
 Matrix<double> givensturn(Matrix<double> A, int p, int q) {
     double cos_phi = A(p - 1, p) / sqrt(A(p - 1, p) * A(p - 1, p) + A(p - 1, q) * A(p - 1, q));
@@ -152,6 +187,27 @@ double powermethod(const Matrix<double> &A) {
     }
     return lambda;
 }
+
+//double inverse_powermethod_with_varbias(const Matrix<double>& A, const Matrix<double> &x_0) {
+//    double eps{1.0e-8};
+//    bool rethist{false};
+//    Matrix<double> x_temp, x_iter;
+//    x_temp =  x_0;
+//    int count = 0;
+//
+//    double lambda{0.0};
+//    double old_lambda{1.0};
+//
+//    while (std::fabs(1.0 - lambda / old_lambda) > eps && count < 50) {
+//        old_lambda = lambda;
+//        x_iter = gauss(A, x_temp);
+//        lambda = x_iter(0, 0);
+//        x_iter /= lambda;
+//        x_temp = x_iter;
+//        count += 1;
+//    }
+//    return lambda;
+//}
 
 double inverse_powermethod(const Matrix<double> &A) {
     double eps{1e-16};
@@ -216,23 +272,36 @@ double getValueFromVector(const Matrix<double> &A, Matrix<double> eigenVector) {
 //}
 
 std::vector<double> generate_orthogonal(std::vector<std::vector<double>> vectors) {
-    std::vector<double> approx(vectors[0].size(), 0.01);
+    std::vector<double> approx(vectors[0].size(), 1.0);
     std::vector<double> orthogonal{approx};
+    double s;
+    vectors.push_back(approx);
+    Matrix<double> q(vectors[0].size(), vectors.size()), r(vectors[0].size(), vectors.size());
+
+    std::cout << vectors.size() << " - ";
     for (int i = 0; i < vectors.size(); ++i) {
-        std::cout << "You came to generate_orthogonal \n";
+//        std::cout << "You came to generate_orthogonal \n";
+//        for (int j = 0; j < vectors[0].size(); ++j) {
+//            std::cout << vectors[i][j] << '\n';
+//        }
+        s = norm(vectors[i]);
+        r(i, i) = s;
+        std::vector<double> temp_q;
         for (int j = 0; j < vectors[0].size(); ++j) {
-            std::cout << vectors[i][j] << '\n';
+            q(j, i) = vectors[i][j] / s;
+            temp_q.push_back(q(j, i));
         }
-        double temp{
-                std::inner_product(vectors[i].begin(), vectors[i].end(), approx.begin(), 0.0) /
-                std::inner_product(vectors[i].begin(), vectors[i].end(), vectors[i].begin(), 0.0)
-        };
-        for (int j = 0; j < vectors.size(); ++j) {
-            orthogonal[j] -= vectors[i][j] * temp;
+        for (int j = i + 1; j < vectors.size(); ++j) {
+            s = std::inner_product(vectors[j].begin(), vectors[j].end(), temp_q.begin(), 0.0);
+            r(j, i) = s;
+            for (int k = 0; k < vectors[0].size(); ++k) {
+                vectors[j][k] -= temp_q[k] * s;
+            }
         }
     }
-    return orthogonal;
+    return vectors.back();
 }
+
 
 std::vector<double> inverse_powermethod_modified(const Matrix<double> &A, double eigenValue) {
     const double eps{1e-9};
@@ -269,47 +338,86 @@ std::vector<double> inverse_powermethod_modified(const Matrix<double> &A, double
 }
 
 Matrix<double> inverse_powermethod_modified(const Matrix<double> &A, const std::vector<double> &eigenVectorInit) {
-    const double eps{1e-16};
-    int s{A.getCols()}, count{0};
-    double lambda, delta{1e6};
-    double eigenValue{-1.0};
+    const double eps{1e-8};
+    int count{0};
+    double delta{1e6}, lambda, old_lambda;
+    double diff{0.0}, new_diff{0.0};
     Matrix<double> eigenVector(A.getRows(), 1);
-    Matrix<double> x_iter, x_temp, tempMatrix(A.getRows(), A.getCols());
-    Matrix<double> I = Matrix<double>::createIdentity(A.getCols());
+    Matrix<double> x_iter, x_temp;
     x_iter.pushBackColumn(eigenVectorInit);
-    while (delta > eps && count < 1000) {
+    std::cout << '\n';
+    while (delta > eps && count < 500) {
         x_temp = x_iter;
-        I *= eigenValue;
-        tempMatrix = A - I;
-        x_iter = gauss(tempMatrix, x_iter);
+        old_lambda = lambda;
+        x_iter = gauss(A, x_iter);
         Normalize(x_iter);
-//        std::cout << x_iter << '\n';
-        x_temp *= x_iter - x_temp;
         delta = norm(x_iter - x_temp);
-
+        lambda = getValueFromVector(A, x_iter);
+        new_diff = std::fabs(lambda - old_lambda);
+        std::cout << count << " & " << new_diff << " & " << getValueFromVector(A, x_iter) << "\\\\\n";
+        std::cout << "\\hline \n";
+        if (new_diff < eps || (new_diff > diff && count > 20)) {
+            return x_iter;
+        }
+        diff = new_diff;
         count++;
-
-//        x_iter = gauss(A, x_temp);
-//        lambda = x_iter(0, 0);
-//        x_iter /= lambda;
-//        x_temp = x_iter;
     }
 
-//    std::cout << "x_iter : \n" << x_iter << '\n';
     return x_iter;
+}
+
+Matrix<double> inverse_powermethod_with_varbias(Matrix<double> A, double t_n, const std::vector<double> &eigenVectorInit) {
+    double eps{1e-8}, delta{1e6};
+    Matrix<double> x, x_n(A.getCols(), 1);
+    x.pushBackColumn(eigenVectorInit);
+    double diff{0.0}, new_diff{0.0};
+    double old_t_n = t_n + 1.0;
+    double lambda, old_lambda;
+    int count = 0;
+    Matrix<double> A_copy = A;
+
+    Matrix<double> I = Matrix<double>::createIdentity(A.getCols());
+    while (fabs(t_n / old_t_n - 1.0) > eps && count < 100) {
+        for (int i = 0; i < A.getCols(); ++i) {
+            A(i, i) -= t_n;
+        }
+        x_n = solveTridiagonal(A, x);
+        old_t_n = t_n;
+        lambda = x_n(0, 0);
+//        lambda = getValueFromVector(A,x_n);
+        t_n += 1 / lambda;
+        x_n /= lambda;
+        x = x_n;
+        count += 1;
+        Normalize(x_n);
+        lambda = getValueFromVector(A_copy, x_n);
+        new_diff = std::fabs(lambda - old_lambda);
+        std::cout << count << " & " << new_diff << " & " << lambda << "\\\\\n";
+        std::cout << "\\hline \n";
+//        diff = new_diff;
+        old_lambda = lambda;
+//        delta = norm(x_n - x);
+    }
+
+    std::cout << "value = " << getValueFromVector(A_copy, x) << '\n';
+    return x;
 }
 
 std::vector<double> find_them_all(const Matrix<double> &A, const double &first) {
     std::vector<double> x_0(A.getCols(), 1.0);
-    std::vector<double> eigenValues, eigenVector;
+    std::vector<double> eigenValues, eigenVector, orthogonal(A.getCols());
     Matrix<double> eigenVectorMatrix(A.getRows(), A.getCols()), zeros(A.getRows(), 1), initApproximation(A.getRows(),
                                                                                                          1);
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_real_distribution<double> dist(-10.0, 100.0);
+
     std::vector<std::vector<double>> eigenVectors;
     eigenValues.reserve(A.getCols());
     eigenValues.push_back(first);
     eigenVector = inverse_powermethod_modified(A, first);
     eigenVectors.push_back(eigenVector);
-    for (int i = 1; i < A.getRows(); ++i) {
+    for (int i = 1; i < A.getRows() - 1; ++i) {
 //        for (int j = 0; j < A.getRows(); ++j) {
 //            eigenVectorMatrix(i - 1, j) = eigenVector[j];
 //        }
@@ -320,21 +428,27 @@ std::vector<double> find_them_all(const Matrix<double> &A, const double &first) 
 //            initApproximation(j, 0) = eigenVector[j];
 //        }
 //        Normalize(initApproximation);
-        initApproximation = inverse_powermethod_modified(A, eigenVectors[i]);
+//        initApproximation = inverse_powermethod_modified(A, eigenVectors[i]);
+        Matrix<double> temp;
+        temp.pushBackColumn(eigenVectors[i]);
+        initApproximation = inverse_powermethod_with_varbias(A, getValueFromVector(A, temp), eigenVectors[i]);
+        std::cout << "Pushed value: " << getValueFromVector(A, initApproximation) << '\n';
 //        std::cout << "Pushed eigenVector: \n";
         for (int j = 0; j < A.getRows(); ++j) {
-            eigenVectors[i][j] = initApproximation(j,0);
+            eigenVectors[i][j] = initApproximation(j, 0);
 //            std::cout << eigenVectors[i][j] << '\n';
         }
+//        std::cout << '\n';
 //        std::cout << "initApproximation : \n" << initApproximation << '\n';
 //        for (int j = 0; j < A.getRows(); ++j) {
 //            initApproximation(j, 0) = -initApproximation(j, 0);             ////WHY?
 //            eigenVector[j] = initApproximation(j, 0);
 //        }
+//        std::cout << "Pushed value: " << getValueFromVector(A, initApproximation) << '\n';
         eigenValues.push_back(getValueFromVector(A, initApproximation));
 
     }
-
+    eigenValues.push_back(1e5);
     std::sort(eigenValues.begin(), eigenValues.end());
     return eigenValues;
 }
@@ -343,7 +457,7 @@ using std::cout;
 using std::endl;
 
 int main() {
-    Matrix<double> A = get_matrix(10, 3);
+    Matrix<double> A = get_matrix(20);
     std::cout << "Matrix:\n";
     std::cout << std::fixed << A << '\n';
     std::cout << "||||||||||||||||||||||||||||||||\n\n";
@@ -354,9 +468,12 @@ int main() {
     std::cout << "Eigenvalues:\n";
     std::cout << "lambda_max = " << std::setprecision(16) << std::fixed << powermethod(A) << '\t'
               << "lambda_min = " << std::setprecision(16) << std::fixed << inverse_powermethod(A) << '\n';
+    double lambda_max = powermethod(A);
     std::cout << "||||||||||||||||||||||||||||||||\n\n";
-
-    for (auto i : find_them_all(A, inverse_powermethod(A))) {
+    std::vector<double> values = find_them_all(A, inverse_powermethod(A));
+    values.back() = lambda_max;
+    std::cout << "Values: \n";
+    for (auto i : values) {
         std::cout << i << '\n';
     }
 
@@ -438,4 +555,20 @@ int main() {
 1.64944508e-06  0.00033500249   0.0193029456    0.168050787   0.507487048   0.401082565  -0.478310932  -0.374261223   -0.354133228    0.242307108
 8.75346695e-08  3.72820537e-05  0.00323204191   0.0439553727  0.230468001  -0.27593617   -0.543076422   0.553881006   -0.151204873   -0.49418835
 2.99017087e-09  2.59791567e-06  0.000329449079  0.00666116484 0.0545644403  0.13471083   -0.226384111  -0.458591967    0.669167206   -0.519124386
+
+-2.4542955810107614
+-2.4542956194392307  39.1383251756 11.6083794364 -2.4542955422 0.8811279103 0.8264630199
+-2.4542955422
+0.8264630156152148
+0.8264630156152148
+0.8264630199
+0.8811279118009789
+0.8811279118009772
+0.8811279103
+11.6083794731384806
+11.6083794377122214
+11.6083794364
+39.1383251733118129
+39.1383251733118129
+39.1383251756
  * */

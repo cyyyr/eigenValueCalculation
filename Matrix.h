@@ -253,9 +253,9 @@ std::ostream &operator<<(std::ostream &os, const Matrix<T> &m) {
     for (int i = 0; i < m.rows_; ++i) {
         os << m.p[i][0];
         for (int j = 1; j < m.cols_; ++j) {
-            os << " " << m.p[i][j];
+            os << ", " << m.p[i][j];
         }
-        os << std::endl;
+        os << ", \n" ;
     }
     return os;
 }
